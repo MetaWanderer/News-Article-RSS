@@ -67,11 +67,3 @@ License
 You are free to use, modify, and distribute this code for personal or commercial projects.
 
 ---
-
-### Final Steps
-
-- **Commit** this file to your repository (or upload via GitHub’s web interface).  
-- GitHub will automatically display `README.md` at the bottom of the repo’s home page. 
-- With that, you’re done! Your project now has clear instructions and info for anyone who visits. 
-
-Enjoy your newly documented RSS Slideshow!
