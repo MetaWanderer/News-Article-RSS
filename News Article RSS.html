@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSS Slideshow</title>
+  <style>
+    /* GLOBAL RESET & BASE STYLES */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #1A1F2C;
+      color: white;
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow: hidden; /* Prevent scrollbars if slideshow extends the viewport */
+    }
+
+    /* SLIDESHOW WRAPPER */
+    .slideshow {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* INDIVIDUAL SLIDE */
+    .slide {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      opacity: 1;
+      transition: opacity 0.5s, transform 0.5s;
+    }
+    .slide.transitioning {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+
+    /* BACKGROUND IMAGE CONTAINER */
+    .image-container {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .image-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      animation: subtle-scale 10s ease-in-out infinite;
+    }
+
+    /* GRADIENT OVERLAY */
+    .gradient-overlay {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(to right, rgba(26, 31, 44, 0.9), rgba(26, 31, 44, 0.7)),
+        linear-gradient(to bottom, transparent 40%, rgba(26, 31, 44, 0.8));
+    }
+
+    /* TEXT CONTENT */
+    .content {
+      position: relative;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 6rem;
+      max-width: 1920px;
+      margin: 0 auto;
+    }
+    .accent-line {
+      width: 6rem;
+      height: 0.25rem;
+      background: linear-gradient(to right, #A78BFA, #EC4899);
+      margin-bottom: 2rem;
+    }
+    .title {
+      font-size: 5rem;
+      font-weight: bold;
+      line-height: 1.1;
+      margin-bottom: 2rem;
+      max-width: 80%;
+      animation: subtle-float 6s ease-in-out infinite;
+    }
+    .description {
+      font-size: 1.875rem;
+      line-height: 1.5;
+      max-width: 60%;
+      opacity: 0.9;
+      animation: subtle-float 6s ease-in-out infinite;
+      animation-delay: 0.2s;
+    }
+
+    /* LOADING STATE */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-size: 1.875rem;
+      font-weight: 600;
+      opacity: 0.8;
+    }
+
+    /* ANIMATIONS */
+    @keyframes subtle-float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+    @keyframes subtle-scale {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+  </style>
+</head>
+<body>
+  <!-- APP CONTAINER -->
+  <div id="app">
+    <div class="loading">Loading news...</div>
+  </div>
+
+  <script>
+    /*
+     * RSS Slideshow Config
+     */
+    const RSS_URL = "https://rss.nytimes.com/services/xml/rss/nyt/US.xml";
+    const SLIDE_DURATION = 15000;        // 15 seconds per slide
+    const FEED_REFRESH_INTERVAL = 120000; // 2 minutes between feed refresh
+    const TRANSITION_DURATION = 500;     // 0.5s fade transition
+
+    class RSSSlideshow {
+      constructor(container) {
+        this.container = container;
+        this.articles = [];
+        this.currentIndex = 0;
+        this.init();
+      }
+
+      // INITIAL SETUP
+      async init() {
+        await this.fetchFeed();
+        this.startRotation();
+        setInterval(() => this.fetchFeed(), FEED_REFRESH_INTERVAL);
+      }
+
+      // FETCH & PARSE THE RSS FEED (OLD DIRECT METHOD)
+      async fetchFeed() {
+        try {
+          const response = await fetch(RSS_URL);
+          // If you see a CORS error or “blocked by CORS policy,”
+          // you likely need to host this file or use a proxy.
+          
+          const text = await response.text();
+          const parser = new DOMParser();
+          const xml = parser.parseFromString(text, "text/xml");
+
+          // Build array of article objects
+          this.articles = Array.from(xml.querySelectorAll("item")).map(item => ({
+            title: item.querySelector("title")?.textContent || "",
+            description: item.querySelector("description")?.textContent || "",
+            image:
+              item.querySelector("media\\:content")?.getAttribute("url") ||
+              item.querySelector("content")?.getAttribute("url") ||
+              "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b" // fallback
+          }));
+
+          if (this.articles.length > 0) {
+            this.render();
+          }
+        } catch (error) {
+          console.error("Failed to fetch RSS feed:", error);
+          this.container.innerHTML = '<div class="loading">Error loading news</div>';
+        }
+      }
+
+      // RENDER THE CURRENT SLIDE
+      render() {
+        const article = this.articles[this.currentIndex];
+        this.container.innerHTML = `
+          <div class="slideshow">
+            <div class="slide">
+              <div class="image-container">
+                <img src="${article.image}" alt="${article.title}">
+                <div class="gradient-overlay"></div>
+              </div>
+              <div class="content">
+                <div class="accent-line"></div>
+                <h1 class="title">${article.title}</h1>
+                <p class="description">${article.description}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // CYCLE THROUGH ARTICLES
+      startRotation() {
+        setInterval(() => {
+          const slide = this.container.querySelector('.slide');
+          slide.classList.add('transitioning');
+
+          setTimeout(() => {
+            this.currentIndex = (this.currentIndex + 1) % this.articles.length;
+            this.render();
+          }, TRANSITION_DURATION);
+        }, SLIDE_DURATION);
+      }
+    }
+
+    // INITIALIZE
+    new RSSSlideshow(document.getElementById('app'));
+  </script>
+</body>
+</html>
